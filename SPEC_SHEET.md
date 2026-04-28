@@ -57,3 +57,11 @@ coplanar Roche debris annulus around WD1145, estimating:
 2. Spatially resolved azimuthal density map and disk gaps.
 3. Explicit cascade branching and debris size-bin transfer matrix.
 4. Observer-frame light-curve synthesis (cadence + noise model).
+
+## Sweep utility
+- `sweep.py` runs multi-seed parameter sweeps over `initial_fragment_count` and writes
+  `sweep_results.csv` with:
+  - hit fraction (runs with >=1 impact),
+  - median total collisions,
+  - median first-impact orbit.
+
