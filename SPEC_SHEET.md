@@ -16,6 +16,9 @@ coplanar Roche debris annulus around WD1145, estimating:
 - Interloper eccentricity: 0.975.
 - Interloper mass: 0.00016 Earth masses (Ceres-scale proxy).
 - Disk geometry: flat, coplanar, no thickness profile.
+- Initial debris can be specified either as a single count or as size bins.
+- Default bins: 5 million at 1 km diameter, 10 million at 500 m diameter,
+  and 20 million at 50 m diameter.
 - Initial debris: 15,000,000 fragments.
 - Fragment diameter range: 2 to 12 meters.
 - Collision cross-section: geometric.
@@ -29,6 +32,8 @@ coplanar Roche debris annulus around WD1145, estimating:
 - `collisions.py`: expected collisions, robust Poisson sampler, impulsive orbital kick.
 - `sublimation.py`: smooth orbital drift term.
 - `observables.py`: optical depth and dip depth index proxies.
+- `simulate.py`: orbit-by-orbit Monte Carlo driver with lambda and velocity histories,
+  including mixed-size fragment-bin handling with cross-section weighting.
 - `simulate.py`: orbit-by-orbit Monte Carlo driver with lambda and velocity histories.
 
 ## Primary outputs

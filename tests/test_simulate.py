@@ -25,6 +25,11 @@ class SimulateTests(unittest.TestCase):
                 "r_in_wd_radii": 97.0,
                 "r_out_wd_radii": 101.0,
                 "initial_fragment_count": 100000,
+                "fragment_bins": [
+                    {"diameter_m": 1000.0, "count": 500},
+                    {"diameter_m": 500.0, "count": 1000},
+                    {"diameter_m": 50.0, "count": 2000},
+                ],
                 "psd_slope_q0": 3.0,
             },
             "collision": {"impulse_efficiency": 0.05},

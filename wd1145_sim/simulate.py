@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
+from typing import Any
 
 from .collisions import expected_collisions, impulsive_orbit_kick, sample_poisson
 from .disk_state import DiskState, decay_activity, update_psd_slope
@@ -27,6 +28,73 @@ class SimulationResult:
     e_history: list[float]
     lambda_history: list[float]
     relative_speed_km_s: list[float]
+    impacted_by_diameter_m: dict[float, int]
+
+
+def _fragment_bins(config: dict[str, Any]) -> list[dict[str, float]]:
+    """Return normalized fragment bins with diameter/count entries."""
+
+    raw_bins = config.get("disk", {}).get("fragment_bins")
+    if raw_bins:
+        bins: list[dict[str, float]] = []
+        for item in raw_bins:
+            bins.append(
+                {
+                    "diameter_m": float(item["diameter_m"]),
+                    "count": float(item["count"]),
+                }
+            )
+        return bins
+
+    return [
+        {
+            "diameter_m": 1.0,
+            "count": float(config["disk"]["initial_fragment_count"]),
+        }
+    ]
+
+
+def _effective_fragment_count(fragment_bins: list[dict[str, float]], interloper_radius_m: float) -> float:
+    """Return cross-section-weighted effective count for mixed-size bins."""
+
+    total = 0.0
+    for bin_item in fragment_bins:
+        frag_radius = 0.5 * bin_item["diameter_m"]
+        weight = ((interloper_radius_m + frag_radius) / interloper_radius_m) ** 2
+        total += bin_item["count"] * weight
+    return total
+
+
+def _impact_probabilities(fragment_bins: list[dict[str, float]], interloper_radius_m: float) -> list[float]:
+    """Return collision allocation probabilities per size bin."""
+
+    weights: list[float] = []
+    for bin_item in fragment_bins:
+        frag_radius = 0.5 * bin_item["diameter_m"]
+        cross_weight = ((interloper_radius_m + frag_radius) / interloper_radius_m) ** 2
+        weights.append(bin_item["count"] * cross_weight)
+    total = sum(weights)
+    if total <= 0:
+        return [1.0 / len(weights)] * len(weights)
+    return [w / total for w in weights]
+
+
+def _allocate_impacts(n_collisions: int, probs: list[float], rng: random.Random) -> list[int]:
+    """Allocate collisions across bins using categorical sampling."""
+
+    counts = [0 for _ in probs]
+    for _ in range(n_collisions):
+        u = rng.random()
+        cdf = 0.0
+        for idx, p in enumerate(probs):
+            cdf += p
+            if u <= cdf:
+                counts[idx] += 1
+                break
+        else:
+            counts[-1] += 1
+    return counts
+
 
 
 
@@ -53,6 +121,18 @@ def run_simulation(config: dict) -> SimulationResult:
     a0 = semimajor_axis_from_period(period_s, mu)
     orbit = OrbitState(a_m=a0, e=float(config["system"]["eccentricity"]))
 
+    interloper_radius_m = float(config["system"]["interloper_radius_km"]) * 1e3
+    fragment_bins = _fragment_bins(config)
+    impact_probs = _impact_probabilities(fragment_bins, interloper_radius_m)
+    effective_fragments = _effective_fragment_count(fragment_bins, interloper_radius_m)
+
+    disk = DiskState(
+        fragment_count=int(effective_fragments),
+        psd_slope_q=config["disk"]["psd_slope_q0"],
+    )
+
+    annulus_area_m2 = 3.141592653589793 * (r_out_m**2 - r_in_m**2)
+    frag_surface_density = effective_fragments / max(annulus_area_m2, 1.0)
     disk = DiskState(
         fragment_count=config["disk"]["initial_fragment_count"],
         psd_slope_q=config["disk"]["psd_slope_q0"],
@@ -68,6 +148,7 @@ def run_simulation(config: dict) -> SimulationResult:
     e_hist: list[float] = [orbit.e]
     lambda_hist: list[float] = []
     rel_speeds: list[float] = []
+    impacted_by_size: dict[float, int] = {b["diameter_m"]: 0 for b in fragment_bins}
 
     for _ in range(n_orbits):
         crossing_length_m = estimate_crossing_length(orbit, r_in_m, r_out_m)
@@ -83,6 +164,10 @@ def run_simulation(config: dict) -> SimulationResult:
         lambda_hist.append(lam)
         n_coll = sample_poisson(lam, rng)
         collision_counts.append(n_coll)
+
+        per_bin = _allocate_impacts(n_coll, impact_probs, rng)
+        for idx, bin_item in enumerate(fragment_bins):
+            impacted_by_size[bin_item["diameter_m"]] += per_bin[idx]
 
         da_imp, de_imp = impulsive_orbit_kick(
             collisions=n_coll,
@@ -132,4 +217,5 @@ def run_simulation(config: dict) -> SimulationResult:
         e_history=e_hist,
         lambda_history=lambda_hist,
         relative_speed_km_s=rel_speeds,
+        impacted_by_diameter_m=impacted_by_size,
     )

@@ -22,6 +22,20 @@ system:
 
 disk:
   geometry: flat_coplanar_annulus
+  # Set annulus to bracket modeled periastron (~175.44 WD radii) so crossing occurs.
+  r_in_wd_radii: 175.30
+  r_out_wd_radii: 175.80
+  wd_radius_km: 8750.0
+  # Backward-compatible fallback if fragment_bins is omitted.
+  initial_fragment_count: 30000000
+  # Asteroid-belt-like binned population (diameter in meters).
+  fragment_bins:
+    - diameter_m: 1000.0
+      count: 250000
+    - diameter_m: 500.0
+      count: 1000000
+    - diameter_m: 20.0
+      count: 11750000
   r_in_wd_radii: 97.0
   r_out_wd_radii: 101.0
   wd_radius_km: 8750.0
