@@ -1,0 +1,74 @@
+project:
+  name: WD1145 Interloper–Debris Disk Monte Carlo
+  version: 0.1.0
+  description: >
+    Baseline simulation for collision frequency, interloper orbital perturbations,
+    and dip-like activity proxies for a high-eccentricity interloper crossing a
+    flat Roche debris annulus.
+
+constants:
+  G: 6.67430e-11
+  M_sun_kg: 1.98847e30
+  M_earth_kg: 5.9722e24
+  day_s: 86400
+  au_m: 1.495978707e11
+
+system:
+  wd_mass_msun: 0.6
+  period_days: 124.0
+  eccentricity: 0.975
+  interloper_mass_mearth: 0.00016
+  interloper_radius_km: 470.0
+
+disk:
+  geometry: flat_coplanar_annulus
+  # Set annulus to bracket modeled periastron (~175.44 WD radii) so crossing occurs.
+  r_in_wd_radii: 175.30
+  r_out_wd_radii: 175.80
+  wd_radius_km: 8750.0
+  # Backward-compatible fallback if fragment_bins is omitted.
+  initial_fragment_count: 30000000
+  # Asteroid-belt-like binned population (diameter in meters).
+  fragment_bins:
+    - diameter_m: 1000.0
+      count: 250000
+    - diameter_m: 500.0
+      count: 1000000
+    - diameter_m: 20.0
+      count: 11750000
+  psd_slope_q0: 3.0
+
+collision:
+  cross_section: geometric
+  relative_velocity:
+    mode: gaussian
+    center_km_s: 92.0
+    sigma_km_s: 12.0
+  fragmentation_efficiency: 0.2
+  impulse_efficiency: 0.05
+
+activity:
+  scatter_duration_years: 4.5
+  decay_mode: exponential
+  decay_tau_years: 2.0
+  local_rate_boost_initial: 4.0
+  psd_stochastic_sigma: 0.25
+
+sublimation:
+  enabled: true
+  S0_kg_s: 1000.0
+  length_scale_m: 2.0e8
+  cutoff_radius_m: 2.0e9
+  da_dt_scale_au_per_yr: -1.0e-6
+  de_dt_scale_per_yr: -2.0e-6
+
+integration:
+  duration_years: 20.0
+  random_seed: 1145
+  monte_carlo_runs: 200
+
+outputs:
+  directory: outputs
+  save_event_catalog: true
+  save_orbital_history: true
+  save_observables: true
