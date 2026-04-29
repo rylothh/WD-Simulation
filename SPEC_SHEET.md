@@ -19,6 +19,8 @@ coplanar Roche debris annulus around WD1145, estimating:
 - Initial debris can be specified either as a single count or as size bins.
 - Default bins: 5 million at 1 km diameter, 10 million at 500 m diameter,
   and 20 million at 50 m diameter.
+- Initial debris: 15,000,000 fragments.
+- Fragment diameter range: 2 to 12 meters.
 - Collision cross-section: geometric.
 - Post-impact activity scatter window: ~4.5 years.
 - Extra non-gravitational term: effective sublimation drift.
@@ -32,6 +34,7 @@ coplanar Roche debris annulus around WD1145, estimating:
 - `observables.py`: optical depth and dip depth index proxies.
 - `simulate.py`: orbit-by-orbit Monte Carlo driver with lambda and velocity histories,
   including mixed-size fragment-bin handling with cross-section weighting.
+- `simulate.py`: orbit-by-orbit Monte Carlo driver with lambda and velocity histories.
 
 ## Primary outputs
 - Collision count per orbit.

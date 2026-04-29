@@ -96,6 +96,8 @@ def _allocate_impacts(n_collisions: int, probs: list[float], rng: random.Random)
     return counts
 
 
+
+
 def run_simulation(config: dict) -> SimulationResult:
     """Run one Monte Carlo realization aligned to `config.yaml`."""
 
@@ -131,6 +133,14 @@ def run_simulation(config: dict) -> SimulationResult:
 
     annulus_area_m2 = 3.141592653589793 * (r_out_m**2 - r_in_m**2)
     frag_surface_density = effective_fragments / max(annulus_area_m2, 1.0)
+    disk = DiskState(
+        fragment_count=config["disk"]["initial_fragment_count"],
+        psd_slope_q=config["disk"]["psd_slope_q0"],
+    )
+
+    interloper_radius_m = config["system"]["interloper_radius_km"] * 1e3
+    annulus_area_m2 = 3.141592653589793 * (r_out_m**2 - r_in_m**2)
+    frag_surface_density = disk.fragment_count / max(annulus_area_m2, 1.0)
 
     collision_counts: list[int] = []
     dip_index: list[float] = []

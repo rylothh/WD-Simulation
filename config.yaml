@@ -36,6 +36,12 @@ disk:
       count: 1000000
     - diameter_m: 20.0
       count: 11750000
+  r_in_wd_radii: 97.0
+  r_out_wd_radii: 101.0
+  wd_radius_km: 8750.0
+  initial_fragment_count: 15000000
+  diameter_m_min: 2.0
+  diameter_m_max: 12.0
   psd_slope_q0: 3.0
 
 collision:
