@@ -96,6 +96,8 @@ def _allocate_impacts(n_collisions: int, probs: list[float], rng: random.Random)
     return counts
 
 
+
+
 def run_simulation(config: dict) -> SimulationResult:
     """Run one Monte Carlo realization aligned to `config.yaml`."""
 
@@ -111,24 +113,9 @@ def run_simulation(config: dict) -> SimulationResult:
     n_orbits = max(1, int(duration_years * 365.25 / period_days))
     dt_years = period_days / 365.25
 
-    earth_diam_km = float(config["constants"].get("earth_diameter_km", 12742.0))
-    wd_radius_km = 0.5 * earth_diam_km * float(config["system"].get("wd_diameter_earth", 1.0))
+    wd_radius_km = config["disk"]["wd_radius_km"]
     r_in_m = config["disk"]["r_in_wd_radii"] * wd_radius_km * 1e3
     r_out_m = config["disk"]["r_out_wd_radii"] * wd_radius_km * 1e3
-
-    thickness_wd = float(config["disk"].get("thickness_wd_radii", 0.0))
-    delta_z_wd = float(config["system"].get("delta_z_wd_radii", 0.0))
-    # Rectangular vertical overlap factor for inclined-crossing approximation.
-    # Full overlap if |delta_z| < half-thickness, linearly tapering to zero by one full thickness offset.
-    half_thick = 0.5 * thickness_wd
-    if thickness_wd <= 0:
-        overlap_factor = 1.0
-    elif abs(delta_z_wd) <= half_thick:
-        overlap_factor = 1.0
-    elif abs(delta_z_wd) >= thickness_wd:
-        overlap_factor = 0.0
-    else:
-        overlap_factor = 1.0 - ((abs(delta_z_wd) - half_thick) / max(half_thick, 1e-12))
 
     mu = G * float(config["system"]["wd_mass_msun"]) * M_sun
     a0 = semimajor_axis_from_period(period_s, mu)
@@ -146,6 +133,14 @@ def run_simulation(config: dict) -> SimulationResult:
 
     annulus_area_m2 = 3.141592653589793 * (r_out_m**2 - r_in_m**2)
     frag_surface_density = effective_fragments / max(annulus_area_m2, 1.0)
+    disk = DiskState(
+        fragment_count=config["disk"]["initial_fragment_count"],
+        psd_slope_q=config["disk"]["psd_slope_q0"],
+    )
+
+    interloper_radius_m = config["system"]["interloper_radius_km"] * 1e3
+    annulus_area_m2 = 3.141592653589793 * (r_out_m**2 - r_in_m**2)
+    frag_surface_density = disk.fragment_count / max(annulus_area_m2, 1.0)
 
     collision_counts: list[int] = []
     dip_index: list[float] = []
@@ -156,7 +151,7 @@ def run_simulation(config: dict) -> SimulationResult:
     impacted_by_size: dict[float, int] = {b["diameter_m"]: 0 for b in fragment_bins}
 
     for _ in range(n_orbits):
-        crossing_length_m = estimate_crossing_length(orbit, r_in_m, r_out_m) * overlap_factor
+        crossing_length_m = estimate_crossing_length(orbit, r_in_m, r_out_m)
         v_rel_m_s = estimate_relative_speed_at_annulus(orbit, r_in_m, r_out_m, mu)
         rel_speeds.append(v_rel_m_s / 1e3)
 
