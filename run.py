@@ -33,6 +33,5 @@ if __name__ == "__main__":
         "mean_dip_index": sum(result.dip_depth_index) / max(1, len(result.dip_depth_index)),
         "final_a_m": result.a_history_m[-1],
         "final_e": result.e_history[-1],
-        "model_perigee_speed_km_s": result.perigee_speed_km_s,
     }
     print(json.dumps(out, indent=2))
