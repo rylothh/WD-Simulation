@@ -1,4 +1,4 @@
-"""Generate non-binary/vector and PNG views of inclined interloper orbit vs perigee debris ring."""
+"""Generate non-binary/vector and PNG views of inclined interloper orbit vs debris ring."""
 
 from __future__ import annotations
 
@@ -29,10 +29,13 @@ def main() -> None:
     rin = float(cfg["disk"]["r_in_wd_radii"])
     rout = float(cfg["disk"]["r_out_wd_radii"])
 
+    # Parametric interloper orbit with WD at focus, projected to sky plane.
     f = np.linspace(0, 2 * np.pi, 3000)
     r = a * (1 - e * e) / (1 + e * np.cos(f))
     x = r * np.cos(f)
     y = r * np.sin(f) * np.cos(inc)
+
+    # Convert to WD-radii units for display.
     x_wd = x / (wd_radius_km * 1e3)
     y_wd = y / (wd_radius_km * 1e3)
 
@@ -46,27 +49,22 @@ def main() -> None:
     ax.set_facecolor("#0b1020")
     fig.patch.set_facecolor("#0b1020")
 
-    ax.plot(ring_in_x, ring_in_y, color="#f4c542", lw=2.0, label="Debris ring inner/outer")
-    ax.plot(ring_out_x, ring_out_y, color="#f4c542", lw=2.0)
-    ax.plot(x_wd, y_wd, color="#7aa6ff", lw=1.8, alpha=0.9, label="Interloper orbit (inclined projection)")
-    ax.scatter([0], [0], color="#9ed0ff", s=35, label="WD1145")
+    ax.fill_between(ring_out_x, ring_out_y, -ring_out_y, color="#f4c542", alpha=0.15)
+    ax.plot(ring_in_x, ring_in_y, color="#f4c542", lw=1.6, label="Debris ring inner/outer")
+    ax.plot(ring_out_x, ring_out_y, color="#f4c542", lw=1.6)
+    ax.plot(x_wd, y_wd, color="#7aa6ff", lw=2.2, label="Interloper orbit (inclined projection)")
+
+    ax.scatter([0], [0], color="#9ed0ff", s=40, label="WD1145")
 
     rp = a * (1 - e) / (wd_radius_km * 1e3)
     ra = a * (1 + e) / (wd_radius_km * 1e3)
-    ax.text(
-        0.02,
-        0.98,
-        f"P={cfg['system']['period_days']} d, e={e:.4f}, i={math.degrees(inc):.1f}°\n"
-        f"Perigee speed target={cfg['system']['perigee_speed_km_s']} km/s\n"
-        f"rp≈{rp:.3f} WD radii, ra≈{ra:.1f} WD radii\n"
-        f"Ring radial diameter: 20 km, thickness: 5 km",
-        transform=ax.transAxes,
-        va="top",
-        color="white",
-        fontsize=10,
-    )
+    ax.text(0.02, 0.98,
+            f"P={cfg['system']['period_days']} d, e={e:.4f}, i={math.degrees(inc):.1f}°\n"
+            f"Perigee speed target={cfg['system']['perigee_speed_km_s']} km/s\n"
+            f"rp≈{rp:.1f} WD radii, ra≈{ra:.1f} WD radii",
+            transform=ax.transAxes, va="top", color="white", fontsize=10)
 
-    lim = max(rout * 1.2, 1200)
+    lim = max(rout * 1.1, np.nanmax(np.abs(x_wd)) * 0.12)
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
     ax.set_aspect("equal", adjustable="box")
@@ -74,16 +72,19 @@ def main() -> None:
     ax.tick_params(colors="#c9d1ff")
     for sp in ax.spines.values():
         sp.set_color("#6b7399")
-    ax.set_title("WD1145 Interloper Orbit vs Perigee Debris Ring", color="white")
+    ax.set_title("WD1145 Interloper Orbit vs Debris Ring (PNG)", color="white")
     ax.set_xlabel("x [WD radii]", color="white")
     ax.set_ylabel("y [WD radii]", color="white")
     ax.legend(facecolor="#1a2242", edgecolor="#6b7399", labelcolor="white")
 
     out_dir = Path("visuals")
     out_dir.mkdir(parents=True, exist_ok=True)
+    png_out = out_dir / "wd1145_inclined_orbit_ring.png"
     svg_out = out_dir / "wd1145_inclined_orbit_ring.svg"
     plt.tight_layout()
+    plt.savefig(png_out, facecolor=fig.get_facecolor())
     plt.savefig(svg_out, facecolor=fig.get_facecolor())
+    print(f"saved {png_out}")
     print(f"saved {svg_out}")
 
 
