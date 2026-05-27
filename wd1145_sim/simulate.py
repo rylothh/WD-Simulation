@@ -29,8 +29,6 @@ class SimulationResult:
     lambda_history: list[float]
     relative_speed_km_s: list[float]
     impacted_by_diameter_m: dict[float, int]
-    perigee_speed_km_s: float
-    period_history_days: list[float]
 
 
 def _fragment_bins(config: dict[str, Any]) -> list[dict[str, float]]:
@@ -98,6 +96,8 @@ def _allocate_impacts(n_collisions: int, probs: list[float], rng: random.Random)
     return counts
 
 
+
+
 def run_simulation(config: dict) -> SimulationResult:
     """Run one Monte Carlo realization aligned to `config.yaml`."""
 
@@ -111,34 +111,15 @@ def run_simulation(config: dict) -> SimulationResult:
     duration_years = config["integration"]["duration_years"]
 
     n_orbits = max(1, int(duration_years * 365.25 / period_days))
-    period_decay_s = float(config["integration"].get("period_decay_seconds_per_orbit", 0.0))
     dt_years = period_days / 365.25
 
-    earth_diam_km = float(config["constants"].get("earth_diameter_km", 12742.0))
-    wd_radius_km = 0.5 * earth_diam_km * float(config["system"].get("wd_diameter_earth", 1.0))
+    wd_radius_km = config["disk"]["wd_radius_km"]
     r_in_m = config["disk"]["r_in_wd_radii"] * wd_radius_km * 1e3
     r_out_m = config["disk"]["r_out_wd_radii"] * wd_radius_km * 1e3
-
-    thickness_wd = float(config["disk"].get("thickness_wd_radii", 0.0))
-    delta_z_wd = float(config["system"].get("delta_z_wd_radii", 0.0))
-    # Rectangular vertical overlap factor for inclined-crossing approximation.
-    # Full overlap if |delta_z| < half-thickness, linearly tapering to zero by one full thickness offset.
-    half_thick = 0.5 * thickness_wd
-    if thickness_wd <= 0:
-        overlap_factor = 1.0
-    elif abs(delta_z_wd) <= half_thick:
-        overlap_factor = 1.0
-    elif abs(delta_z_wd) >= thickness_wd:
-        overlap_factor = 0.0
-    else:
-        overlap_factor = 1.0 - ((abs(delta_z_wd) - half_thick) / max(half_thick, 1e-12))
 
     mu = G * float(config["system"]["wd_mass_msun"]) * M_sun
     a0 = semimajor_axis_from_period(period_s, mu)
     orbit = OrbitState(a_m=a0, e=float(config["system"]["eccentricity"]))
-
-    rp_m = orbit.a_m * (1.0 - orbit.e)
-    perigee_speed_km_s = (mu * (2.0 / rp_m - 1.0 / orbit.a_m)) ** 0.5 / 1e3
 
     interloper_radius_m = float(config["system"]["interloper_radius_km"]) * 1e3
     fragment_bins = _fragment_bins(config)
@@ -152,6 +133,14 @@ def run_simulation(config: dict) -> SimulationResult:
 
     annulus_area_m2 = 3.141592653589793 * (r_out_m**2 - r_in_m**2)
     frag_surface_density = effective_fragments / max(annulus_area_m2, 1.0)
+    disk = DiskState(
+        fragment_count=config["disk"]["initial_fragment_count"],
+        psd_slope_q=config["disk"]["psd_slope_q0"],
+    )
+
+    interloper_radius_m = config["system"]["interloper_radius_km"] * 1e3
+    annulus_area_m2 = 3.141592653589793 * (r_out_m**2 - r_in_m**2)
+    frag_surface_density = disk.fragment_count / max(annulus_area_m2, 1.0)
 
     collision_counts: list[int] = []
     dip_index: list[float] = []
@@ -159,22 +148,12 @@ def run_simulation(config: dict) -> SimulationResult:
     e_hist: list[float] = [orbit.e]
     lambda_hist: list[float] = []
     rel_speeds: list[float] = []
-    period_hist_days: list[float] = []
     impacted_by_size: dict[float, int] = {b["diameter_m"]: 0 for b in fragment_bins}
 
-    for orbit_idx in range(n_orbits):
-        crossing_length_m = estimate_crossing_length(orbit, r_in_m, r_out_m) * overlap_factor
+    for _ in range(n_orbits):
+        crossing_length_m = estimate_crossing_length(orbit, r_in_m, r_out_m)
         v_rel_m_s = estimate_relative_speed_at_annulus(orbit, r_in_m, r_out_m, mu)
         rel_speeds.append(v_rel_m_s / 1e3)
-
-        event_every_years = float(config["activity"].get("event_every_years", 0.0))
-        event_duration_orbits = int(config["activity"].get("event_duration_orbits", 0))
-        event_boost = float(config["activity"].get("event_collision_boost", 1.0))
-        if event_every_years > 0 and event_duration_orbits > 0:
-            event_period_orbits = max(1, int((event_every_years * 365.25) / period_days))
-            in_event = (orbit_idx % event_period_orbits) < event_duration_orbits
-        else:
-            in_event = False
 
         lam = expected_collisions(
             fragment_surface_density_m2=frag_surface_density,
@@ -182,8 +161,6 @@ def run_simulation(config: dict) -> SimulationResult:
             interloper_radius_m=interloper_radius_m,
             activity_multiplier=1.0 + disk.activity_level,
         )
-        if in_event:
-            lam *= event_boost
         lambda_hist.append(lam)
         n_coll = sample_poisson(lam, rng)
         collision_counts.append(n_coll)
@@ -233,10 +210,6 @@ def run_simulation(config: dict) -> SimulationResult:
         a_hist.append(orbit.a_m)
         e_hist.append(orbit.e)
 
-        period_hist_days.append(period_days)
-        # Monotonic period decay per orbit (seconds converted to days).
-        period_days = max(0.01, period_days + period_decay_s / 86400.0)
-
     return SimulationResult(
         collision_counts=collision_counts,
         dip_depth_index=dip_index,
@@ -245,6 +218,4 @@ def run_simulation(config: dict) -> SimulationResult:
         lambda_history=lambda_hist,
         relative_speed_km_s=rel_speeds,
         impacted_by_diameter_m=impacted_by_size,
-        perigee_speed_km_s=perigee_speed_km_s,
-        period_history_days=period_hist_days,
     )
