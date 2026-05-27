@@ -1,0 +1,3 @@
+seed=12001, orbits=116, total_impacts=13789, mean_per_orbit=118.871
+seed=12002, orbits=116, total_impacts=13660, mean_per_orbit=117.759
+seed=12003, orbits=116, total_impacts=13817, mean_per_orbit=119.112
